@@ -10,8 +10,9 @@ e envia-os aos Agentes de Entrega registrados.
 Coord = Tuple[int, int]
 
 class ControlAgent:
-    def __init__(self, base_map: List[str]):
-        self.base_map = base_map[:]          # tokens
+    def __init__(self, base_map: List[str], map_width: int = 4):
+        self.base_map = base_map[:]          # tokens representando mapa ("0" livres, outros obstáculos)
+        self.map_width = map_width           # largura do mapa (para converter índice linear em coordenadas)
         self.subscribers: Dict[str, Callable[[Iterable[Coord]], None]] = {}
         self.alert_history: List[List[Coord]] = []
 
@@ -30,26 +31,26 @@ class ControlAgent:
     def send_event(self, agent_id: str, event: str):
         print(f"[CTRL] {agent_id} EVENT {event}")
 
-    # Lógica de tráfego
+    # Lógica de tráfego: simula geração de alertas aleatórios
     def tick(self):
         """Um 'ciclo' de simulação; decide se cria novos alertas."""
-        if random.random() < 0.4:   # ~40 % de chance de novo alerta
+        if random.random() < 0.4:   # ~40% de chance de novo alerta
             cells = self._select_traffic_cells()
-            self.alert_history.append(cells)
-            print(f"[CTRL] ALERT {cells}")
-            self._publish(cells)
+            if cells:
+                self.alert_history.append(cells)
+                print(f"[CTRL] ALERT {cells}")
+                self._publish(cells)
 
     def _select_traffic_cells(self) -> List[Coord]:
         """Escolhe 1-3 células 'livres' para marcar como tráfego."""
-        libres = [divmod(i, 4) for i, t in enumerate(self.base_map) if t == "0"]
+        libres = [divmod(i, self.map_width) for i, t in enumerate(self.base_map) if t == "0"]
         random.shuffle(libres)
         return libres[: random.randint(1, 3)]
 
-
 # Pequeno “proxy” para evitar import circular em delivery.py
 class ControlProxy:
-    """Interface mínima exposta ao DeliveryAgent (injeção de depend.)"""
-    def __init__(self, core: ControlAgent):        # delega para core
+    """Interface mínima exposta ao DeliveryAgent (injeção de dependência)"""
+    def __init__(self, core: ControlAgent):
         self.core = core
 
     def subscribe(self, agent_id, callback):

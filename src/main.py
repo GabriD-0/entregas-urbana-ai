@@ -1,37 +1,63 @@
-# src/main.py
 from pathlib import Path
-from imageFormat.image_to_tokens import imagem_para_tokens
-from agents.delivery import DeliveryAgent
+from imageFormat.occupancy_grid import build_cost_grid
 from agents.control import ControlAgent, ControlProxy
-from utils.visual import draw_route
+from agents.delivery import PixelDeliveryAgent
+from utils.visual_px import draw_path_px
 
-BASE_DIR  = Path(__file__).resolve().parent.parent           # …/Faculdade AI
-IMG_CLEAN = BASE_DIR / "src" / "images" / "limpas" / "image1.png" # foto original
-TMP_GRID  = BASE_DIR / "src" / "images" / "alteradas" / "image1mapa_4x4.png"
-IMG_ROUTE = BASE_DIR / "src" / "images" / "alteradas" / "image1_trajeto.png"
+BASE = Path(__file__).resolve().parent
+IMG_CLEAN = BASE / "images" / "limpas" / "image1.png"
+IMG_OUT   = BASE / "images" / "alteradas" / "image1_trajeto_px.png"
 
+# 1) Constrói grade de custo (reduzindo resolução 4× p/ performance)
+costs, img_small = build_cost_grid(IMG_CLEAN, scale=4)
 
-# Passa a imagem limpa → a função criará TMP_GRID automaticamente
-tokens = imagem_para_tokens(IMG_CLEAN, tmp_img=TMP_GRID)
-
-ctrl_core  = ControlAgent(tokens)
+# 2) Cria controlador (para gerar alertas em runtime, se necessário)
+# Gera lista de tokens do mapa base ("0" para célula livre, "1" para obstáculo)
+H, W = costs.shape
+base_map_tokens = ["0" if c > 0 else "1" for c in costs.flatten()]
+ctrl_core  = ControlAgent(base_map_tokens, map_width=W)
 controller = ControlProxy(ctrl_core)
 
-delivery = DeliveryAgent(
-    agent_id="van-42",
-    start=(0, 0),
-    goal=(3, 3),
-    base_map=tokens,
+# 3) Define pontos de partida e destino (em coordenadas da grade reduzida!)
+start1 = (10, 20)   # ajuste livremente
+goal1  = (110, 200)
+start2 = (170, 20)  # ajuste livremente
+goal2  = (20, 300)
+
+agent1 = PixelDeliveryAgent(
+    agent_id="van1-px",
+    start=start1,
+    goal=goal1,
+    cost_grid=costs,
+    controller=controller,
+)
+agent2 = PixelDeliveryAgent(
+    agent_id="van2-px",
+    start=start2,
+    goal=goal2,
+    cost_grid=costs,
     controller=controller,
 )
 
+# (Opcional) Registrar agentes para receber alertas de tráfego:
+# controller.subscribe(agent1.id, agent1.on_alert)
+# controller.subscribe(agent2.id, agent2.on_alert)
 
-for _ in range(50):
-    delivery.step()
+# 4) Simula movimentação dos dois agentes
+for _ in range(20_000):      # passos suficientes para ambos concluírem
+    if agent1.pos != goal1:
+        agent1.step()
+    if agent2.pos != goal2:
+        agent2.step()
+    # Gera alertas aleatórios de tráfego (sem replanejamento complexo)
     ctrl_core.tick()
-    if delivery.pos == delivery.goal:
+    if agent1.pos == goal1 and agent2.pos == goal2:
         break
 
-draw_route(TMP_GRID, delivery.history, IMG_ROUTE)
+# 5) Desenha trajetos dos dois agentes na imagem
+draw_path_px(img_small, agent1.history, IMG_OUT,
+             grid_shape=costs.shape,
+             path2=agent2.history)
 
-print("Trajeto percorrido:", delivery.history)
+print("Histórico do trajeto (van1-px):", agent1.history[:10], "...", agent1.history[-1])
+print("Histórico do trajeto (van2-px):", agent2.history[:10], "...", agent2.history[-1])
