@@ -1,8 +1,9 @@
-# image_to_tokens.py
+from __future__ import annotations
+from typing import overload, List, Literal, Union
 from pathlib import Path
 from statistics import mean
 from PIL import Image
-from formatar_imagem_4x4 import formatar_imagem_4x4   # mesmo diretório
+from .formatar_imagem_4x4 import formatar_imagem_4x4
 
 TH_OBST = 100        # < cinza → obstáculo
 TH_ROAD = 200        # > cinza → via livre
@@ -12,14 +13,34 @@ TOKEN_MAP = {
     "ROAD": "0",
 }
 
-def imagem_para_tokens(caminho_in: str | Path,
-                       tmp_img: str | Path = "tmp_grid.png",
-                       usar_media: bool = False) -> list[str] | list[int]:
-    """Gera 16 tokens (linha-a-linha) a partir de uma imagem qualquer.
+@overload
+def imagem_para_tokens(
+        caminho_in: str | Path,
+        tmp_img: str | Path = ...,
+        usar_media: Literal[False] = ...
+    ) -> List[str]: ...
+
+@overload
+def imagem_para_tokens(
+        caminho_in: str | Path,
+        tmp_img: str | Path = ...,
+        usar_media: Literal[True] = ...
+    ) -> List[int]: ...
+
+def imagem_para_tokens(
+        caminho_in: str | Path,
+        tmp_img: str | Path = "tmp_grid.png",
+        usar_media: bool = False
+    ) -> Union[List[str], List[int]]:
+    # print(caminho_in, Path(caminho_in).resolve().exists())
+
+    """
+    Gera 16 tokens (linha-a-linha) a partir de uma imagem qualquer.
 
     Se usar_media=False    → ['0','0','X', ...]  (categorias)
     Se usar_media=True     → [143, 255,  32, ...] (médias)
     """
+
     # Garante imagem 4×4 gradeada em memória
     formatar_imagem_4x4(caminho_in, tmp_img, dir_celulas=None)
     img = Image.open(tmp_img).convert("L")
