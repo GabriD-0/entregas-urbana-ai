@@ -9,20 +9,13 @@ def formatar_imagem_4x4(
     cor_grade: tuple[int, int, int] = (128, 128, 128),
     espessura_grade: int = 3,
 ) -> None:
-    """
-    Converte a imagem para um tabuleiro 4×4:
-      • tons de cinza 8-bit (depois volta a RGB para a grade);
-      • recorta centralizado para quadrado preservando proporção;
-      • redimensiona para `tamanho_final` px;
-      • desenha grade e salva;
-      • (opcional) exporta as 16 células.
-    """
+
     caminho_in = Path(caminho_in)
     caminho_out = Path(caminho_out)
     
     # 1. Carregar e cinza
     img = Image.open(caminho_in).convert("L")
-    
+
     # 2. Recortar centralizado + redimensionar de uma vez
     img = ImageOps.fit(
         img,
@@ -30,7 +23,7 @@ def formatar_imagem_4x4(
         method=Image.Resampling.LANCZOS,
         centering=(0.5, 0.5),
     ).convert("RGB")       # volta a RGB para poder colorir a grade
-    
+
     # 3. Desenhar grade
     draw = ImageDraw.Draw(img)
     passo = tamanho_final // 4
@@ -39,7 +32,7 @@ def formatar_imagem_4x4(
                   fill=cor_grade, width=espessura_grade)
         draw.line([(i * passo, 0), (i * passo, tamanho_final)],
                   fill=cor_grade, width=espessura_grade)
-    
+
     # 4. Salvar imagem com grade
     caminho_out.parent.mkdir(parents=True, exist_ok=True)
     img.save(caminho_out)
@@ -59,8 +52,8 @@ def formatar_imagem_4x4(
 # --- Exemplo de uso ---
 if __name__ == "__main__":
     formatar_imagem_4x4(
-        "images/limpas/image1.png",
-        "images/alteradas/image1mapa_4x4.png",
+        "src/images/limpas/image1.png",
+        "src/images/alteradas/image1mapa_4x4.png",
         dir_celulas="tiles",
         tamanho_final=400,
         cor_grade=(128, 128, 128),
