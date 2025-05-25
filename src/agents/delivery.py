@@ -22,13 +22,13 @@ class DeliveryAgent:
         self.id = agent_id
         self.pos = start
         self.goal = goal
-        self.controller = controller
         self.map = base_map[:]           # cópia mutável
         self.size = 4
-        self.path: List[Coord] = []
+        self.controller = controller
+        
+        self.path = []
+        self.history: list[Coord]  = [start]     # ⬅ começa registrando o ponto inicial
         self.plan_route()
-
-        # registra-se no controle para receber alertas
         self.controller.subscribe(self.id, self.on_alert)
 
 
@@ -86,6 +86,7 @@ class DeliveryAgent:
         if len(self.path) > 1:
             self.path.pop(0)            # posição atual
             self.pos = self.path[0]
+            self.history.append(self.pos)       # ⬅ novo ponto
 
         self.controller.send_progress(self.id, self.pos)
 

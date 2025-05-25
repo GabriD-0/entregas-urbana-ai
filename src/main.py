@@ -3,11 +3,13 @@ from pathlib import Path
 from imageFormat.image_to_tokens import imagem_para_tokens
 from agents.delivery import DeliveryAgent
 from agents.control import ControlAgent, ControlProxy
+from utils.visual import draw_route
 
-# ────────────────────────────────────────────────────────────────
 BASE_DIR  = Path(__file__).resolve().parent.parent           # …/Faculdade AI
 IMG_CLEAN = BASE_DIR / "src" / "images" / "limpas" / "image1.png" # foto original
 TMP_GRID  = BASE_DIR / "src" / "images" / "alteradas" / "image1mapa_4x4.png"
+IMG_ROUTE = BASE_DIR / "src" / "images" / "alteradas" / "image1_trajeto.png"
+
 
 # Passa a imagem limpa → a função criará TMP_GRID automaticamente
 tokens = imagem_para_tokens(IMG_CLEAN, tmp_img=TMP_GRID)
@@ -23,8 +25,13 @@ delivery = DeliveryAgent(
     controller=controller,
 )
 
+
 for _ in range(50):
     delivery.step()
     ctrl_core.tick()
     if delivery.pos == delivery.goal:
         break
+
+draw_route(TMP_GRID, delivery.history, IMG_ROUTE)
+
+print("Trajeto percorrido:", delivery.history)
