@@ -3,16 +3,29 @@ import numpy as np
 import random
 import sys
 import os
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "Agents"))
+
 import busca 
 from agente import Agente
+from segmentation import segmentar
 
 # Parâmetros da grade e limites para classificação
-GRID_ROWS = 4
-GRID_COLS = 4
-WATER_THRESHOLD = 100    # limiar de pixels de água para considerar célula como rio
-BUILDING_THRESHOLD = 5000 # limiar de pixels de prédio para considerar célula como predio
-EDGE_THRESHOLD = 1000     # limiar de pixels de aresta para considerar célula como rua
+CELL_PX = 32
+
+def salvar_debug(tipo, cell_px, path):
+    cores = {
+        "rodovia":   (0, 255, 255),     # amarelo → ciano (BGR)
+        "rua":       (255, 255, 255),   # branco
+        "bloqueado": (50, 50, 50)       # cinza
+    }
+    rows, cols = tipo.shape
+    vis = np.zeros((rows * cell_px, cols * cell_px, 3), dtype=np.uint8)
+    for i in range(rows):
+        for j in range(cols):
+            vis[i*cell_px:(i+1)*cell_px,
+                j*cell_px:(j+1)*cell_px] = cores.get(tipo[i, j], (0, 0, 255))
+    cv2.imwrite(path, vis)
 
 def carregar_imagem(caminho):
     """Carrega a imagem do mapa a partir do caminho fornecido."""
@@ -49,45 +62,42 @@ def desenhar_grid(img, rows, cols, cell_h, cell_w):
 
 def classificar_celulas(img, rows, cols, cell_h, cell_w):
     """
-    Classifica cada célula da imagem cortada em 'rua', 'rio', 'predio' ou 'outro'.
-    Retorna a matriz de classificações e a matriz booleana de caminhabilidade.
+    Baseado nas cores do novo mapa:
+    • 'rodovia'  (amarelo)  → caminhável
+    • 'rua'      (branca)   → caminhável
+    • 'bloqueado'           → tudo o resto
+    Retorna (classificacao, walkable, custo)
     """
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # versão em tons de cinza para detecção de bordas
-    # Separa os canais de cor
-    b, g, r = cv2.split(img)
-    # Cria máscara de pixels de água (rios) – cor azul/ciano clara
-    mask_water = (((b > 200) & (g > 200) & (r < 150))).astype(np.uint8) * 255
-    # Cria máscara de pixels de prédio – cor bege clara (R e G altos, maiores que B)
-    mask_building = ((r > b) & (g > b) & (r > 200) & (g > 200)).astype(np.uint8) * 255
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     classificacao = [[None]*cols for _ in range(rows)]
-    walkable = [[False]*cols for _ in range(rows)]
-    # Percorre cada célula da grid
+    walkable      = [[False]*cols for _ in range(rows)]
+    custo         = [[999.0]*cols for _ in range(rows)]
+
     for i in range(rows):
         for j in range(cols):
-            y0 = i * cell_h
-            x0 = j * cell_w
-            # Conta pixels de rio e prédio na célula usando as máscaras
-            water_pixels = cv2.countNonZero(mask_water[y0:y0+cell_h, x0:x0+cell_w])
-            building_pixels = cv2.countNonZero(mask_building[y0:y0+cell_h, x0:x0+cell_w])
-            # Detecta arestas (bordas) na célula para identificar estruturas lineares (ruas)
-            cell_gray = gray[y0:y0+cell_h, x0:x0+cell_w]
-            edges = cv2.Canny(cell_gray, 50, 150)
-            edge_pixels = cv2.countNonZero(edges)
-            # Aplica as regras de classificação com prioridade: rio > prédio > rua > outro
-            if water_pixels > WATER_THRESHOLD:
-                classificacao[i][j] = 'rio'
-                walkable[i][j] = False
-            elif building_pixels > BUILDING_THRESHOLD:
-                classificacao[i][j] = 'predio'
-                walkable[i][j] = False
-            elif edge_pixels > EDGE_THRESHOLD:
-                classificacao[i][j] = 'rua'
-                walkable[i][j] = True
+            y0, x0 = i*cell_h, j*cell_w
+            tile   = hsv[y0:y0+cell_h, x0:x0+cell_w]
+            h_mean, s_mean, v_mean = tile.reshape(-1,3).mean(axis=0)
+
+            # Rodovia amarela
+            if 15 <= h_mean <= 40 and s_mean > 80 and v_mean > 130:
+                classificacao[i][j] = "rodovia"
+                walkable[i][j]      = True
+                custo[i][j]         = 0.5
+
+            # Rua branca / marfim
+            elif s_mean < 40 and v_mean > 200:
+                classificacao[i][j] = "rua"
+                walkable[i][j]      = True
+                custo[i][j]         = 1.0
+
+            # Bloqueado
             else:
-                classificacao[i][j] = 'outro'
-                walkable[i][j] = False
-    return classificacao, walkable
+                classificacao[i][j] = "bloqueado"
+                # walkable já é False, custo = 999
+
+    return classificacao, walkable, custo
 
 def encontrar_clusters_rodoviarios(walkable):
     """
@@ -162,24 +172,19 @@ def desenhar_rotas(img, paths, cell_h, cell_w):
 # Execução principal do script
 if __name__ == "__main__":
     # Caminho da imagem de entrada (pode ser ajustado conforme o nome/locais do arquivo)
-    caminho_imagem = "src/imgs/map.png"  # Exemplo de nome para imagem fornecida
-    imagem = carregar_imagem(caminho_imagem)
+    caminho_imagem = "src/imgs/map.png"
+    imagem         = carregar_imagem(caminho_imagem)
 
-    # Prepara a imagem para a grid 4x4
-    imagem_cort, cell_h, cell_w = recortar_para_grid(imagem, GRID_ROWS, GRID_COLS)
-    cv2.imwrite("src/imgs/original.png", imagem_cort)  # salva imagem original cortada (sem grid)
+    # --- nova segmentação por cor -----------------------------------------
+    walkable, custo, tipo = segmentar(imagem, cell_px=CELL_PX)
 
-    # Gera imagem com grid desenhada
-    img_grid = imagem_cort.copy()
-    desenhar_grid(img_grid, GRID_ROWS, GRID_COLS, cell_h, cell_w)
-    cv2.imwrite("src/imgs/grid.png", img_grid)
+    # salva PNG de depuração (opcional)
+    salvar_debug(tipo, CELL_PX, "src/imgs/debug_tiles.png")
+    
 
-    # Classifica cada célula da malha
-    classificacao, walkable = classificar_celulas(imagem_cort, GRID_ROWS, GRID_COLS, cell_h, cell_w)
-    print("Classificação das células:")
-    for i in range(GRID_ROWS):
-        # Imprime cada linha da matriz de classificação
-        print(" ".join(f"{classificacao[i][j]:6}" for j in range(GRID_COLS)))
+    rows, cols = walkable.shape
+    # “recorta” a imagem para coincidir exatamente com a grade
+    imagem_cort = imagem[:rows*CELL_PX, :cols*CELL_PX].copy()
 
     # Encontra clusters de ruas conectadas e escolhe posições de início e fim
     clusters = encontrar_clusters_rodoviarios(walkable)
@@ -191,8 +196,8 @@ if __name__ == "__main__":
     agente2 = Agente("Agente 2", busca.heuristica_euclidiana)
 
     # Planeja caminhos para cada agente do seu start até o destino comum
-    caminho1 = agente1.planejar_caminho(walkable, start1, dest)
-    caminho2 = agente2.planejar_caminho(walkable, start2, dest)
+    caminho1 = agente1.planejar_caminho(walkable, custo, start1, dest)
+    caminho2 = agente2.planejar_caminho(walkable, custo, start2, dest)
 
     # Log da sequência de células visitadas em cada caminho
     print("Agente 1 caminho:", " -> ".join(str(c) for c in caminho1) if caminho1 else "(nenhum caminho)")
@@ -200,5 +205,5 @@ if __name__ == "__main__":
 
     # Desenha as rotas na imagem e salva o resultado
     img_routes = imagem_cort.copy()
-    desenhar_rotas(img_routes, [caminho1, caminho2], cell_h, cell_w)
+    desenhar_rotas(img_routes, [caminho1, caminho2], CELL_PX, CELL_PX)
     cv2.imwrite("src/imgs/routes.png", img_routes)
