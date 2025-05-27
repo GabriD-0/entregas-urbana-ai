@@ -126,8 +126,8 @@ if __name__ == "__main__":
     positions, adj = load_graph(json_file)
 
     # Selecione start e goal manualmente ou via algum critério
-    start_id = "4_3"     # <- substitua pelos nós que desejar
-    goal_id  = "1_6"
+    start_id = "14_3"     # <- substitua pelos nós que desejar
+    goal_id  = "2_14"
 
     if start_id not in positions or goal_id not in positions:
         raise ValueError("start_id ou goal_id não existe ou não é célula-rua")
