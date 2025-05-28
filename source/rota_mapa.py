@@ -105,7 +105,6 @@ def construir_grafo(
 
     return {"nodes": nodes, "edges": edges}
 
-# --- NOVA FUNÇÃO -----------------------------------------------------------
 def anotar_tiles(img: np.ndarray,
                  linhas: int,
                  colunas: int,
@@ -131,24 +130,3 @@ def anotar_tiles(img: np.ndarray,
                         font_scale, cor_texto, espessura, cv2.LINE_AA)
     return out
 
-
-if __name__ == "__main__":
-    # 1) Remove fundo e obtém a máscara
-    resultado, mask = remover_fundo("source/image.png")
-    cv2.imwrite("source/image_linhas.png", resultado)
-
-    # 2) (Opcional) desenha grid e pontos
-    img_grid = aplicar_grid(resultado, mask, linhas=16, colunas=16)
-    cv2.imwrite("source/image_grid.png", img_grid)
-
-    # 2b) (opcional) adiciona etiquetas r_c em cada tile
-    img_rotulado = anotar_tiles(img_grid, linhas=16, colunas=16)
-    cv2.imwrite("source/image_grid_labels.png", img_rotulado)
-    print("Imagem de referência com labels em source/image_grid_labels.png")
-
-    # 3) Constrói o grafo e salva em JSON
-    grafo = construir_grafo(mask)
-    with open("source/image_graph.json", "w") as f:
-        json.dump(grafo, f, indent=2)
-
-    print("Processamento concluído. Grafo viário em source/image_graph.json")

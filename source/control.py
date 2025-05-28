@@ -2,7 +2,7 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Set, Tuple
 
-Coord = Tuple[int, int]           # (row, col)
+Coord = Tuple[int, int] # (row, col)
 
 class ControlAgent:
     """
@@ -26,12 +26,10 @@ class ControlAgent:
 
         # estado interno
         self._traffic: Dict[Coord,int] = {}        # célula -> TTL restante
-        self._agents : List   = []                 # referências aos agentes inscritos
-        self.tick      = 0
+        self._agents : List = []                 # referências aos agentes inscritos
+        self.tick = 0
 
-    # --------------------------------------------------------------------- #
     # Interface pública
-    # --------------------------------------------------------------------- #
     def register(self, agent) -> None:
         """Associa um DeliveryAgent a este controle."""
         self._agents.append(agent)
@@ -42,9 +40,7 @@ class ControlAgent:
         """Quanto custa atravessar `cell` agora."""
         return self.penalty if cell in self._traffic else 0
 
-    # --------------------------------------------------------------------- #
     # Loop de simulação
-    # --------------------------------------------------------------------- #
     def step(self) -> None:
         """Avança UM passo na simulação."""
         self.tick += 1
@@ -60,9 +56,7 @@ class ControlAgent:
         for ag in self._agents:
             ag.next_step()
 
-    # --------------------------------------------------------------------- #
     # Algoritmos internos
-    # --------------------------------------------------------------------- #
     def _decair_alertas(self) -> None:
         """Reduz TTL de cada alerta; remove os expirados."""
         expirar = [cell for cell, ttl in self._traffic.items() if ttl <= 1]
@@ -81,6 +75,6 @@ class ControlAgent:
             r = random.randint(0, self.rows - 1)
             c = random.randint(0, self.cols - 1)
             cell = (r, c)
-            if cell not in self._traffic:         # evita duplicar
+            if cell not in self._traffic: # evita duplicar
                 self._traffic[cell] = self.ttl_alert
                 faltam -= 1

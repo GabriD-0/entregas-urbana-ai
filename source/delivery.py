@@ -24,16 +24,12 @@ class DeliveryAgent:
         self.path:   List[NodeId] = []
         self._plan_route()                 # rota inicial
 
-    # ------------------------------------------------------------------ #
     # callbacks do CONTROL
-    # ------------------------------------------------------------------ #
     def on_traffic_update(self, traffic_cells: Set[Coord]) -> None:
         self.traffic = traffic_cells
         self._plan_route()                 # replaneja com custos atualizados
 
-    # ------------------------------------------------------------------ #
     # loop principal (chamado pelo ControlAgent.step())
-    # ------------------------------------------------------------------ #
     def next_step(self) -> None:
         if self.pos_id == self.goal_id:    # já chegou
             return
@@ -49,9 +45,7 @@ class DeliveryAgent:
             self.pos_id = self.path.pop(1)     # move 1 passo
             print(f"[{self.id}] -> {self.pos_id}")
 
-    # ------------------------------------------------------------------ #
     # utilidades internas
-    # ------------------------------------------------------------------ #
     def _plan_route(self) -> None:
         """Compute shortest path with dynamic traffic penalty."""
         def cost(a: NodeId, b: NodeId) -> int:
@@ -80,7 +74,7 @@ class DeliveryAgent:
         # sem rota
         self.path = []
 
-    # --- helpers -------------------------
+    # helpers 
     def _coord(self, node_id: NodeId) -> Coord:
         return self.pos_table[node_id]
 

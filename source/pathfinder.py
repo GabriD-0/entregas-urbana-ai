@@ -1,16 +1,12 @@
-"""
-pathfinder.py  –  encontra rotas sobre o grafo viário salvo em image_graph.json
-Requisitos: apenas Python-padrão + OpenCV (para visualização opcional)
-"""
 from __future__ import annotations
 import json
 import heapq
+import cv2
+import numpy as np
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-# -----------------------------------------------------------
 # Utilidades de grafo
-# -----------------------------------------------------------
 Coord    = Tuple[int, int]          # (row, col) da célula
 NodeId   = str
 AdjTable = Dict[NodeId, Set[NodeId]]
@@ -39,9 +35,7 @@ def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
             adj[b].add(a)
     return positions, adj
 
-# -----------------------------------------------------------
 # A* (grade – custo uniforme 1 por passo)
-# -----------------------------------------------------------
 def manhattan(a: Coord, b: Coord) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -60,7 +54,7 @@ def a_star(start: NodeId, goal: NodeId,
     while open_heap:
         _, current = heapq.heappop(open_heap)
 
-        if current == goal:                     # reconstruir caminho
+        if current == goal:  # reconstruir caminho
             path = [current]
             while current in came_from:
                 current = came_from[current]
@@ -77,9 +71,7 @@ def a_star(start: NodeId, goal: NodeId,
                 heapq.heappush(open_heap, (f, neighbor))
     return None
 
-# -----------------------------------------------------------
 # Visualização opcional
-# -----------------------------------------------------------
 def draw_path_on_grid(img_path: str | Path,
                       grid_rows: int, grid_cols: int,
                       path: List[NodeId],
@@ -88,9 +80,6 @@ def draw_path_on_grid(img_path: str | Path,
     Desenha a rota (lista de NodeIds) por cima da imagem de grade gerada
     anteriormente e salva em `out_path`.
     """
-    import cv2
-    import numpy as np
-
     img = cv2.imread(str(img_path))
     if img is None:
         raise FileNotFoundError(img_path)
@@ -116,31 +105,3 @@ def draw_path_on_grid(img_path: str | Path,
     cv2.imwrite(str(out_path), img)
     print(f"Rota desenhada salva em {out_path}")
 
-# -----------------------------------------------------------
-# Exemplo de uso
-# -----------------------------------------------------------
-if __name__ == "__main__":
-    json_file = "source/image_graph.json"        # gerado pelo pipeline anterior
-    grid_img  = "source/image_grid.png"   # para visualização (opcional)
-
-    positions, adj = load_graph(json_file)
-
-    # Selecione start e goal manualmente ou via algum critério
-    start_id = "14_3"     # <- substitua pelos nós que desejar
-    goal_id  = "2_14"
-
-    if start_id not in positions or goal_id not in positions:
-        raise ValueError("start_id ou goal_id não existe ou não é célula-rua")
-
-    path = a_star(start_id, goal_id, positions, adj)
-    if path is None:
-        print("Nenhum caminho possível entre", start_id, "e", goal_id)
-    else:
-        print("Caminho encontrado:")
-        print(" -> ".join(path))
-
-        # (Opcional) desenha rota na imagem da grade
-        draw_path_on_grid(grid_img,
-                          grid_rows=16, grid_cols=16,  # MESMO nº usado no grafo
-                          path=path,
-                          out_path="source/image_route.png")
