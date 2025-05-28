@@ -23,13 +23,14 @@ GRID_IMG        = src_dir / "imgs/image_grid.png"
 GRID_LABELS_IMG = src_dir / "imgs/image_grid_labels.png"
 GRAPH_JSON      = src_dir / "imgs/image_graph.json"
 ROUTE_IMG       = src_dir / "imgs/image_route.png"
+IMG_ROUTE_EUC   = src_dir / "imgs/image_route_euclid.png"
 
 # IDs de início e fim para o A*
 START_ID = "14_3"
 GOAL_ID  = "2_14"
+
 # Número de passos na simulação
 ticks = 100
-
 
 def desenhar_rota(base_img: np.ndarray, coords: Sequence[tuple[int, int]]) -> np.ndarray:
     """
@@ -97,29 +98,59 @@ def main():
     # 5) A*
     print(f"[5/7] A* {START_ID}→{GOAL_ID}...")
     positions, adj = load_graph(GRAPH_JSON)
-    path_ids = a_star(START_ID, GOAL_ID, positions, adj)
-    if path_ids is None:
+    # 5a) Rota Manhattan (como antes)
+    path_ids_man = a_star(START_ID, GOAL_ID, positions, adj, heuristic="manhattan")
+    # 5b) Rota Euclidiana
+    path_ids_euc = a_star(START_ID, GOAL_ID, positions, adj, heuristic="euclidean")
+
+    if path_ids_man is None or path_ids_euc is None:
         raise SystemExit("✖ Sem rota viável")
-    print(f"✓ {len(path_ids)-1} passos")
+
 
     # Converte IDs "r_c" → (r, c)
-    path_coords = [tuple(map(int, node.split('_'))) for node in path_ids]
+    path_coords_man = [tuple(map(int, node.split('_'))) for node in path_ids_man]
+    path_coords_euc = [tuple(map(int, node.split('_'))) for node in path_ids_euc]
+
 
     # 6) Simulação (histórico opcional)
     print(f"[6/7] Simulando {ticks} ticks...")
     ctrl = ControlAgent(rows=grid_size, cols=grid_size, ttl_alert=4, max_alerts=3, traffic_penalty=3)
-    agent = DeliveryAgent("van-01", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
-    ctrl.register(agent)
+    agent1 = DeliveryAgent("van-01", heuristic="Manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
+    agent2 = DeliveryAgent("van-02", heuristic="euclidean", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
+
+    ctrl.register(agent1)
+    ctrl.register(agent2)
+    
     start = time.perf_counter()
     for _ in range(ticks): ctrl.step()
     print(f"Simulação em {time.perf_counter()-start:.2f}s")
 
-    # 7) Rota
+    # 7) Rotas
     print("[7/7] Desenhando rota...")
     base = cv2.imread(str(GRID_IMG))
-    img_route = desenhar_rota(base, path_coords) # type: ignore
-    cv2.imwrite(str(ROUTE_IMG), img_route)
-    print(f"→ {ROUTE_IMG}")
+    # — Manhattan em vermelho (default)
+    img_route_man = desenhar_rota(base, path_coords_man)# type: ignore
+    cv2.imwrite(str(ROUTE_IMG), img_route_man)
+
+    # — Euclidiana em azul
+    def desenhar_rota_azul(img_base, coords):
+        azul = (255, 0, 0)
+        img = img_base.copy()
+        h, w = img.shape[:2]
+        cell_h, cell_w = h // grid_size, w // grid_size
+        centers = [(c*cell_w+cell_w//2, r*cell_h+cell_h//2) for r, c in coords]
+        for p, q in zip(centers, centers[1:]):
+            cv2.line(img, p, q, azul, 2)
+        cv2.circle(img, centers[0], 6, (0,255,0), -1)
+        cv2.circle(img, centers[-1],6, azul, -1)
+        return img
+    
+    img_route_euc = desenhar_rota_azul(base, path_coords_euc)
+    cv2.imwrite(str(IMG_ROUTE_EUC), img_route_euc)
+
+    print(f"-> {ROUTE_IMG}  (Manhattan)")
+    print(f"-> {IMG_ROUTE_EUC} (Euclidiana)")
+
 
 if __name__ == "__main__":
     main()

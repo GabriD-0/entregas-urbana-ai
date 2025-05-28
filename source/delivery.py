@@ -1,23 +1,28 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import List, Set, Tuple, Dict
-from pathfinder import a_star, load_graph          # reaproveita código!
+from pathfinder import load_graph
 from control import ControlAgent
 
 NodeId = str
 Coord  = Tuple[int, int]
 
 class DeliveryAgent:
-    def __init__(self,
-                 agent_id: str,
-                 start_id: NodeId,
-                 goal_id:  NodeId,
-                 graph_json: str | Path,
-                 control: ControlAgent) -> None:
+    def __init__(
+        self,
+        agent_id: str,
+        start_id: NodeId,
+        goal_id:  NodeId,
+        graph_json: str | Path,
+        control: ControlAgent,
+        heuristic: str = "manhattan"
+    ) -> None:
+
         self.id        = agent_id
         self.pos_id    = start_id
         self.goal_id   = goal_id
         self.control   = control
+        self.heuristic = heuristic
         self.pos_table, self.adj = load_graph(graph_json)
 
         self.traffic: Set[Coord] = set()   # células bloqueadas
@@ -69,14 +74,25 @@ class DeliveryAgent:
                 if nxt not in g or tentative < g[nxt]:
                     came[nxt] = cur
                     g[nxt] = tentative
-                    f = tentative + self._manhattan(nxt, self.goal_id)
-                    heapq.heappush(open_heap, (f, nxt))
+
+                    if self.heuristic == "euclidean":
+                        h = self._eucliedean(nxt, self.goal_id)
+                    else:
+                        h = self._manhattan(nxt, self.goal_id)
+                    f = tentative + h
+
+                    heapq.heappush(open_heap, (f, nxt)) # type: ignore
         # sem rota
         self.path = []
 
     # helpers 
     def _coord(self, node_id: NodeId) -> Coord:
         return self.pos_table[node_id]
+
+    def _eucliedean(self, a: NodeId, b: NodeId) -> float:
+        r1, c1 = self._coord(a)
+        r2, c2 = self._coord(b)
+        return ((r1 - r2)**2 + (c1 - c2)**2) ** 0.5
 
     def _manhattan(self, a: NodeId, b: NodeId) -> int:
         r1, c1 = self._coord(a)

@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import json
 from typing import Tuple, Dict
 
 def remover_fundo(caminho_entrada: str) -> Tuple[np.ndarray, np.ndarray]:

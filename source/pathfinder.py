@@ -1,8 +1,8 @@
 from __future__ import annotations
 import json
 import heapq
+import math
 import cv2
-import numpy as np
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
@@ -35,16 +35,60 @@ def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
             adj[b].add(a)
     return positions, adj
 
+
 # A* (grade – custo uniforme 1 por passo)
 def manhattan(a: Coord, b: Coord) -> int:
+    """
+    descritiva...
+    """
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
-def a_star(start: NodeId, goal: NodeId,
-           pos: PosTable, adj: AdjTable) -> List[NodeId] | None:
+# Euclidiana
+def euclidiana(a: Coord, b: Coord) -> float:
+    """
+    Distancia em linha (admissível porque nunca 
+    superestima nº real de passos numa grade 4-vizinhos).
+    """
+    return math.hypot(a[0], - b[0], a[1] - b[1])
+
+def obstaculos(a: Coord, b: Coord, is_road: Dict[Coord, bool]) -> int:
+    """
+    Conta quantas células NÃO-rua existem no retângulo mínimo que contém
+    start→goal.  Cada obstáculo exigirá no mínimo 1 desvio, portanto
+    o valor continua admissível.
+    """
+    r1, c1 = a
+    r2, c2 = b
+
+    rmin, rmax = sorted((r1, r2))
+    cmin, cmax = sorted((c1, c2))
+
+    conta = 0
+
+    for r in range(rmin, rmax + 1):
+        for c in range(cmin, cmax + 1):
+            if (r, c) not in is_road or not is_road[(r, c)]:
+                conta += 1
+
+    return conta
+
+
+
+
+def a_star(
+    start: NodeId,
+    goal: NodeId,
+    pos: PosTable,
+    adj: AdjTable,
+    heuristic: str = "manhattan",
+    is_road: Dict[Coord, bool] | None = None
+    ) -> List[NodeId] | None:
+
     """
     Algoritmo A*.  Retorna a lista de nós do caminho (start … goal)
     ou None se não existe rota.
     """
+
     open_heap: List[Tuple[int, NodeId]] = []
     heapq.heappush(open_heap, (0, start))
 
@@ -56,6 +100,7 @@ def a_star(start: NodeId, goal: NodeId,
 
         if current == goal:  # reconstruir caminho
             path = [current]
+
             while current in came_from:
                 current = came_from[current]
                 path.append(current)
@@ -63,13 +108,29 @@ def a_star(start: NodeId, goal: NodeId,
             return path
 
         for neighbor in adj[current]:
-            tentative_g = g_score[current] + 1   # custo uniforme
+            tentative_g = g_score[current] + 1
+
             if neighbor not in g_score or tentative_g < g_score[neighbor]:
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
                 f = tentative_g + manhattan(pos[neighbor], pos[goal])
-                heapq.heappush(open_heap, (f, neighbor))
+                # Heuristica
+                if heuristic == "manhattan":
+                    h = manhattan(pos[neighbor], pos[goal])
+                elif heuristic == "euclidean":
+                    h = euclidiana(pos[neighbor], pos[goal])
+                elif heuristic == "obstacles":
+                    if is_road is None:
+                        raise ValueError("Passe is_road se usar heuristica 'obstacles'")
+                    h = obstaculos(pos[neighbor], pos[goal], is_road)
+                else:
+                    raise ValueError(f"Heurística '{heuristic}' desconhecida")
+                f = tentative_g + h
+
+                heapq.heappush(open_heap, (f, neighbor)) # type: ignore
+
     return None
+
 
 # Visualização opcional
 def draw_path_on_grid(img_path: str | Path,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 Coord = Tuple[int, int] # (row, col)
 
