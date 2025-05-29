@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple, Callable
 
 # Utilidades de grafo
-Coord    = Tuple[int, int]          # (row, col) da célula
+Coord    = Tuple[int, int] # (row, col) da célula
 NodeId   = str
 AdjTable = Dict[NodeId, Set[NodeId]]
 PosTable = Dict[NodeId, Coord]
@@ -33,30 +33,24 @@ def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
         if a in positions and b in positions:      # garante que ambos são “rua”
             adj[a].add(b)
             adj[b].add(a)
-    return positions, adj
+
+    is_road = {
+        (n["row"], n["col"]): bool(n["is_road"])
+        for n in data["nodes"]
+    }
+
+    return positions, adj, is_road
 
 
 # A* (grade – custo uniforme 1 por passo)
 def manhattan(a: Coord, b: Coord) -> int:
-    """
-    descritiva...
-    """
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 # Euclidiana
 def euclidiana(a: Coord, b: Coord) -> float:
-    """
-    Distancia em linha (admissível porque nunca 
-    superestima nº real de passos numa grade 4-vizinhos).
-    """
-    return math.hypot(a[0], - b[0], a[1] - b[1])
+    return math.hypot(a[0] - b[0], a[1] - b[1])
 
 def obstaculos(a: Coord, b: Coord, is_road: Dict[Coord, bool]) -> int:
-    """
-    Conta quantas células NÃO-rua existem no retângulo mínimo que contém
-    start→goal.  Cada obstáculo exigirá no mínimo 1 desvio, portanto
-    o valor continua admissível.
-    """
     r1, c1 = a
     r2, c2 = b
 

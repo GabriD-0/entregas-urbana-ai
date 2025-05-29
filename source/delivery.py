@@ -17,7 +17,8 @@ class DeliveryAgent:
         graph_json: str | Path,
         control: ControlAgent,
         strategy: str = "astar",
-        heuristic: str = "manhattan"
+        heuristic: str = "manhattan",
+        permanent_blocks: set[Coord] | None = None
     ) -> None:
 
         self.history: List[NodeId] = [start_id]
@@ -28,7 +29,8 @@ class DeliveryAgent:
         self.control   = control
         self.strategy  = strategy
         self.heuristic = heuristic
-        self.pos_table, self.adj = load_graph(graph_json)
+        self.permanent_blocks = set(permanent_blocks or [])
+        self.pos_table, self.adj, self.is_road = load_graph(graph_json)
 
         self.traffic: Set[Coord] = set()   # células bloqueadas
         self.path:   List[NodeId] = []
@@ -61,10 +63,13 @@ class DeliveryAgent:
     def _plan_route(self) -> None:
         """Recalcula self.path conforme self.strategy."""
         def cost(a: NodeId, b: NodeId) -> int:
-            # custo base 1 + penalidade de tráfego
+            r, c = self._coord(b)
+
+            if (r, c) in self.permanent_blocks:
+                return 1_000_000_000           
             return 1 + self.control.get_penalty(self._coord(b))
 
-        if self.strategy == "dijkstra":       # --- não heurístico ---
+        if self.strategy == "dijkstra":
             self.path = dijkstra(
                 self.pos_id,
                 self.goal_id,
@@ -92,6 +97,8 @@ class DeliveryAgent:
 
                     if self.heuristic == "euclidean":
                         h = self._eucliedean(nxt, self.goal_id)
+                    elif self.heuristic == "obstacles":
+                        h = self._obstacles(nxt, self.goal_id)
                     else:
                         h = self._manhattan(nxt, self.goal_id)
                     f = tentative + h
@@ -114,6 +121,20 @@ class DeliveryAgent:
         r2, c2 = self._coord(b)
         return abs(r1 - r2) + abs(c1 - c2)
 
+    def _obstacles(self, a: NodeId, b: NodeId) -> int:
+        """Número de tiles-obstáculo dentro do retângulo start→goal (admissível)."""
+        r1, c1 = self._coord(a)
+        r2, c2 = self._coord(b)
+        rmin, rmax = sorted((r1, r2))
+        cmin, cmax = sorted((c1, c2))
+
+        conta = 0
+        for r in range(rmin, rmax + 1):
+            for c in range(cmin, cmax + 1):
+                if not self.is_road.get((r, c), False):
+                    conta += 1
+        return conta
+
     def _reconstruct(self, came, cur):
         p = [cur]
         while cur in came:
@@ -121,3 +142,12 @@ class DeliveryAgent:
             p.append(cur)
         p.reverse()
         return p
+    
+    def toggle_obstacle(self, cell: Coord, is_road: bool = False) -> None:
+        """
+        Marca ou desmarca permanentemente uma célula como rua/obstáculo **somente
+        para fins da heurística** (não altera o grafo nem o custo real).
+        Use antes de iniciar a simulação.
+        """
+        self.is_road[cell] = is_road
+

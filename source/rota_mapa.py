@@ -127,5 +127,6 @@ def anotar_tiles(img: np.ndarray,
             cv2.putText(out, texto, (cx-20, cy+5),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         font_scale, cor_texto, espessura, cv2.LINE_AA)
+
     return out
 
