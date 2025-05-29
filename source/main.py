@@ -5,9 +5,8 @@ import cv2
 from PIL import Image
 from pathlib import Path
 from typing import Sequence
-
 import rota_mapa as rm
-from pathfinder import load_graph, a_star
+from pathfinder import load_graph, a_star, dijkstra
 from control import ControlAgent
 from delivery import DeliveryAgent
 
@@ -18,12 +17,14 @@ src_dir.mkdir(parents=True, exist_ok=True)
 
 # Caminhos de arquivos
 IMAGE_SRC       = src_dir / "image.png"
-IMAGE_LINES     = src_dir / "imgs/image_linhas.png"
-GRID_IMG        = src_dir / "imgs/image_grid.png"
-GRID_LABELS_IMG = src_dir / "imgs/image_grid_labels.png"
+IMAGE_LINES     = src_dir / "imgs/1_image_linhas.png"
+GRID_IMG        = src_dir / "imgs/2_image_grid.png"
+GRID_LABELS_IMG = src_dir / "imgs/3_image_grid_labels.png"
 GRAPH_JSON      = src_dir / "imgs/image_graph.json"
-ROUTE_IMG       = src_dir / "imgs/image_route.png"
-IMG_ROUTE_EUC   = src_dir / "imgs/image_route_euclid.png"
+ROUTE_IMG       = src_dir / "imgs/4_image_route_manhattan.png"
+IMG_ROUTE_EUC   = src_dir / "imgs/5_image_route_euclid.png"
+IMG_ROUTE_DIJ = src_dir / "imgs/6_image_route_dijk.png"
+
 
 # IDs de início e fim para o A*
 START_ID = "14_3"
@@ -64,6 +65,8 @@ def desenhar_rota(base_img: np.ndarray, coords: Sequence[tuple[int, int]]) -> np
     return img
 
 
+
+
 def main():
     # 1) Remoção de fundo e máscara
     print("[1/7] Removendo fundo...")
@@ -98,32 +101,46 @@ def main():
     # 5) A*
     print(f"[5/7] A* {START_ID}→{GOAL_ID}...")
     positions, adj = load_graph(GRAPH_JSON)
+
     # 5a) Rota Manhattan (como antes)
     path_ids_man = a_star(START_ID, GOAL_ID, positions, adj, heuristic="manhattan")
+
     # 5b) Rota Euclidiana
     path_ids_euc = a_star(START_ID, GOAL_ID, positions, adj, heuristic="euclidean")
 
-    if path_ids_man is None or path_ids_euc is None:
+    # 5c) Dijkstra
+    path_ids_dij = dijkstra(START_ID, GOAL_ID, adj)
+
+
+    if path_ids_man is None or path_ids_euc is None or path_ids_dij is None:
         raise SystemExit("✖ Sem rota viável")
 
 
     # Converte IDs "r_c" → (r, c)
     path_coords_man = [tuple(map(int, node.split('_'))) for node in path_ids_man]
     path_coords_euc = [tuple(map(int, node.split('_'))) for node in path_ids_euc]
+    path_coords_dij = [tuple(map(int, node.split('_'))) for node in path_ids_dij]
 
 
     # 6) Simulação (histórico opcional)
     print(f"[6/7] Simulando {ticks} ticks...")
     ctrl = ControlAgent(rows=grid_size, cols=grid_size, ttl_alert=4, max_alerts=3, traffic_penalty=3)
-    agent1 = DeliveryAgent("van-01", heuristic="Manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
-    agent2 = DeliveryAgent("van-02", heuristic="euclidean", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
+
+    agent1     = DeliveryAgent("van-01", heuristic="Manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
+    agent2     = DeliveryAgent("van-02", heuristic="euclidean", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
+    agent_dijk = DeliveryAgent("van-dijk", strategy="dijkstra", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl)
 
     ctrl.register(agent1)
     ctrl.register(agent2)
+    ctrl.register(agent_dijk)
+
+    # DEBUG: veja quem está no controle
+    print("Agentes registrados →", [ag.id for ag in ctrl._agents])
     
     start = time.perf_counter()
     for _ in range(ticks): ctrl.step()
     print(f"Simulação em {time.perf_counter()-start:.2f}s")
+
 
     # 7) Rotas
     print("[7/7] Desenhando rota...")
@@ -131,6 +148,7 @@ def main():
     # — Manhattan em vermelho (default)
     img_route_man = desenhar_rota(base, path_coords_man)# type: ignore
     cv2.imwrite(str(ROUTE_IMG), img_route_man)
+
 
     # — Euclidiana em azul
     def desenhar_rota_azul(img_base, coords):
@@ -144,12 +162,41 @@ def main():
         cv2.circle(img, centers[0], 6, (0,255,0), -1)
         cv2.circle(img, centers[-1],6, azul, -1)
         return img
+
+    def desenhar_rota_cor(img_base, coords, cor_bgr):
+        img = img_base.copy()
+        h, w = img.shape[:2]
+        cell_h, cell_w = h // grid_size, w // grid_size
+        centers = [(c*cell_w+cell_w//2, r*cell_h+cell_h//2) for r, c in coords]
+        for p, q in zip(centers, centers[1:]):
+            cv2.line(img, p, q, cor_bgr, 2)
+        cv2.circle(img, centers[0], 6, (0,255,0), -1)
+        cv2.circle(img, centers[-1],6, cor_bgr, -1)
+        return img
     
     img_route_euc = desenhar_rota_azul(base, path_coords_euc)
     cv2.imwrite(str(IMG_ROUTE_EUC), img_route_euc)
 
+    img_route_dij = desenhar_rota_cor(base, path_coords_dij, (255,255,0))     # ciano
+    cv2.imwrite(str(IMG_ROUTE_DIJ), img_route_dij)
+
     print(f"-> {ROUTE_IMG}  (Manhattan)")
     print(f"-> {IMG_ROUTE_EUC} (Euclidiana)")
+    print(f"-> {IMG_ROUTE_DIJ} (Dijkstra)")
+
+
+    # 8) Mostrar histórico de cada tick lado a lado
+    print("\nTick |   Manhattan   |  Euclidiana   |   Dijkstra   ")
+    print("-------+---------------+---------------+--------------")
+    # o primeiro elemento de history é o start_id (tick 0)
+    max_ticks = max(len(agent1.history),
+                    len(agent2.history),
+                    len(agent_dijk.history))
+    for t in range(max_ticks):
+        m = agent1.history[t] if t < len(agent1.history) else "–"
+        e = agent2.history[t] if t < len(agent2.history) else "–"
+        d = agent_dijk.history[t] if t < len(agent_dijk.history) else "–"
+        print(f"{t:4d} | {m:^13} | {e:^13} | {d:^13}")
 
 
 if __name__ == "__main__":

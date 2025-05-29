@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathfinder import dijkstra
 from pathlib import Path
 from typing import List, Set, Tuple, Dict
 from pathfinder import load_graph
@@ -15,13 +16,17 @@ class DeliveryAgent:
         goal_id:  NodeId,
         graph_json: str | Path,
         control: ControlAgent,
+        strategy: str = "astar",
         heuristic: str = "manhattan"
     ) -> None:
+
+        self.history: List[NodeId] = [start_id]
 
         self.id        = agent_id
         self.pos_id    = start_id
         self.goal_id   = goal_id
         self.control   = control
+        self.strategy  = strategy
         self.heuristic = heuristic
         self.pos_table, self.adj = load_graph(graph_json)
 
@@ -48,14 +53,24 @@ class DeliveryAgent:
         # avança para o próximo nó
         if len(self.path) > 1:
             self.pos_id = self.path.pop(1)     # move 1 passo
+            self.history.append(self.pos_id)
+
             print(f"[{self.id}] -> {self.pos_id}")
 
     # utilidades internas
     def _plan_route(self) -> None:
-        """Compute shortest path with dynamic traffic penalty."""
+        """Recalcula self.path conforme self.strategy."""
         def cost(a: NodeId, b: NodeId) -> int:
             # custo base 1 + penalidade de tráfego
             return 1 + self.control.get_penalty(self._coord(b))
+
+        if self.strategy == "dijkstra":       # --- não heurístico ---
+            self.path = dijkstra(
+                self.pos_id,
+                self.goal_id,
+                self.adj,
+                cost_fn=cost) or []
+            return
 
         # A*: mesmo heurística Manhattan, mas custo por aresta = cost()
         open_heap: List[Tuple[int, NodeId]] = []

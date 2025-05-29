@@ -4,7 +4,7 @@ import heapq
 import math
 import cv2
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Callable
 
 # Utilidades de grafo
 Coord    = Tuple[int, int]          # (row, col) da célula
@@ -73,15 +73,13 @@ def obstaculos(a: Coord, b: Coord, is_road: Dict[Coord, bool]) -> int:
     return conta
 
 
-
-
 def a_star(
-    start: NodeId,
-    goal: NodeId,
-    pos: PosTable,
-    adj: AdjTable,
-    heuristic: str = "manhattan",
-    is_road: Dict[Coord, bool] | None = None
+        start: NodeId,
+        goal: NodeId,
+        pos: PosTable,
+        adj: AdjTable,
+        heuristic: str = "manhattan",
+        is_road: Dict[Coord, bool] | None = None
     ) -> List[NodeId] | None:
 
     """
@@ -128,7 +126,42 @@ def a_star(
                 f = tentative_g + h
 
                 heapq.heappush(open_heap, (f, neighbor)) # type: ignore
+    return None
 
+
+# Dijkstra = Não heuristico
+def dijkstra(
+        start: NodeId,
+        goal: NodeId,
+        adj: AdjTable,
+        cost_fn: Callable[[NodeId, NodeId], int] = lambda _a, _b: 1
+    ) -> List[NodeId] | None:
+
+    """
+    Busca de custo uniforme (não heurística).  Retorna o caminho
+    mais barato segundo `cost_fn`, ou None se não há rota.
+    """
+
+    open_heap: List[Tuple[int, NodeId]] = [(0, start)]
+    came: Dict[NodeId, NodeId] = {}
+    dist: Dict[NodeId, int]   = {start: 0}
+
+    while open_heap:
+        g, cur = heapq.heappop(open_heap)
+        if cur == goal:                      # reconstrução
+            path = [cur]
+            while cur in came:
+                cur = came[cur]
+                path.append(cur)
+            path.reverse()
+            return path
+
+        for nxt in adj[cur]:
+            ng = g + cost_fn(cur, nxt)       # CUSTO REAL
+            if nxt not in dist or ng < dist[nxt]:
+                dist[nxt] = ng
+                came[nxt] = cur
+                heapq.heappush(open_heap, (ng, nxt))
     return None
 
 
