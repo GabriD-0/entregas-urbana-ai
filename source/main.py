@@ -2,6 +2,7 @@ import json
 import time
 import numpy as np
 import cv2
+import json
 from PIL import Image
 from pathlib import Path
 from typing import Sequence
@@ -21,9 +22,9 @@ IMAGE_LINES     = src_dir / "imgs/1_image_linhas.png"
 GRID_IMG        = src_dir / "imgs/2_image_grid.png"
 GRID_LABELS_IMG = src_dir / "imgs/3_image_grid_labels.png"
 GRAPH_JSON      = src_dir / "imgs/image_graph.json"
-ROUTE_IMG       = src_dir / "imgs/4_image_route_manhattan.png"
-IMG_ROUTE_EUC   = src_dir / "imgs/5_image_route_euclid.png"
-IMG_ROUTE_DIJ   = src_dir / "imgs/6_image_route_dijk.png"
+ROUTE_IMG       = src_dir / "imgs/rotas/1_image_route_manhattan.png"
+IMG_ROUTE_EUC   = src_dir / "imgs/rotas/2_image_route_euclid.png"
+IMG_ROUTE_DIJ   = src_dir / "imgs/rotas/3_image_route_dijk.png"
 
 
 # IDs de início e fim para o A*
@@ -129,7 +130,7 @@ def main():
 
     PERM_BLOCKS = {(13, 3), (8, 9), (7, 3)}
 
-    agent1     = DeliveryAgent("van-01", heuristic="Manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
+    agent1     = DeliveryAgent("van-01", heuristic="manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
     agent2     = DeliveryAgent("van-02", heuristic="euclidean", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
     agent_dijk = DeliveryAgent("van-dijk", strategy="dijkstra", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
 
@@ -160,13 +161,13 @@ def main():
     coords_dij = [tuple(map(int, nid.split("_"))) for nid in agent_dijk.history]
 
     img_hist_man = desenhar_rota(base, coords_man)
-    cv2.imwrite(str(src_dir / "imgs/7_rota_real_manhattan.png"), img_hist_man)
+    cv2.imwrite(str(src_dir / "imgs/rotas/4_rota_real_manhattan.png"), img_hist_man)
 
     img_hist_euc = desenhar_rota(base, coords_euc)
-    cv2.imwrite(str(src_dir / "imgs/8_rota_real_euclidiana.png"), img_hist_euc)
+    cv2.imwrite(str(src_dir / "imgs/rotas/5_rota_real_euclidiana.png"), img_hist_euc)
 
     img_hist_dij = desenhar_rota(base, coords_dij)
-    cv2.imwrite(str(src_dir / "imgs/9_rota_real_dijkstra.png"), img_hist_dij)
+    cv2.imwrite(str(src_dir / "imgs/rotas/6_rota_real_dijkstra.png"), img_hist_dij)
 
     print("→ rota_real_manhattan.png, rota_real_euclidiana.png, rota_real_dijkstra.png geradas")
 
@@ -218,6 +219,33 @@ def main():
         e = agent2.history[t] if t < len(agent2.history) else "–"
         d = agent_dijk.history[t] if t < len(agent_dijk.history) else "–"
         print(f"{t:4d} | {m:^13} | {e:^13} | {d:^13}")
+
+
+    simulation_time = time.perf_counter() - start
+    metrics: dict = {}
+    def coletar(ag: DeliveryAgent, nome: str, planned: list):
+        metrics[nome] = {
+            "initial_plan_time_s": ag.initial_plan_time,
+            "total_plan_time_s": ag.total_planning_time,
+            "replan_count":      ag.replan_count,
+            "planned_path_len":  len(planned),
+            "actual_steps":      len(ag.history)-1,
+            "history_len":       len(ag.history),
+        }
+
+    coletar(agent1,     "manhattan", path_coords_man)
+    coletar(agent2,     "euclidean", path_coords_euc)
+    coletar(agent_dijk, "dijkstra",  path_coords_dij)
+    metrics["simulation"] = {
+        "ticks": ticks,
+        "duration_s": round(simulation_time, 4),
+    }
+
+    # gravação
+    with open(src_dir/"json/metrics.json", "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
+
+    print(f"[9/9] Métricas salvas em {src_dir/'json/metrics.json'}")
 
 
 if __name__ == "__main__":
