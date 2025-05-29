@@ -128,7 +128,7 @@ def main():
     print(f"[6/7] Simulando {ticks} ticks...")
     ctrl = ControlAgent(rows=grid_size, cols=grid_size, ttl_alert=4, max_alerts=3, traffic_penalty=3)
 
-    PERM_BLOCKS = {(13, 3), (8, 9), (7, 3)}
+    PERM_BLOCKS = {(13, 2), (8, 3), (7, 3)}
 
     agent1     = DeliveryAgent("van-01", heuristic="manhattan", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
     agent2     = DeliveryAgent("van-02", heuristic="euclidean", start_id=START_ID, goal_id=GOAL_ID, graph_json=GRAPH_JSON, control=ctrl, permanent_blocks=PERM_BLOCKS)
@@ -246,6 +246,39 @@ def main():
         json.dump(metrics, f, indent=2)
 
     print(f"[9/9] Métricas salvas em {src_dir/'json/metrics.json'}")
+
+
+    # 8.5) Exporta ticks + rotas em JSON
+    json_dir = src_dir / "json"
+    json_dir.mkdir(parents=True, exist_ok=True)
+
+    # tabela de ticks
+    ticks_out = []
+    for t in range(max_ticks):
+        ticks_out.append({
+            "tick": t,
+            "manhattan": agent1.history[t] if t < len(agent1.history) else None,
+            "euclidean": agent2.history[t] if t < len(agent2.history) else None,
+            "dijkstra":  agent_dijk.history[t] if t < len(agent_dijk.history) else None,
+        })
+
+    # percursos planejados completos (IDs “r_c”)
+    routes_out = {
+        "manhattan": path_ids_man,
+        "euclidean": path_ids_euc,
+        "dijkstra":  path_ids_dij,
+    }
+
+    export = {
+        "routes": routes_out,
+        "ticks":  ticks_out,
+    }
+
+    ticks_file = json_dir / "ticks_routes.json"
+    with open(ticks_file, "w", encoding="utf-8") as f:
+        json.dump(export, f, indent=2)
+
+    print(f"✔  Ticks + rotas exportados em {ticks_file}")
 
 
 if __name__ == "__main__":

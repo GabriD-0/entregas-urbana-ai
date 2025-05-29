@@ -1,7 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import List, Set, Tuple, Dict
-import time, heapq
+import time
+import heapq
 
 from pathfinder import dijkstra, load_graph
 from control import ControlAgent
@@ -22,7 +23,7 @@ class DeliveryAgent:
         permanent_blocks: set[Coord] | None = None,
     ) -> None:
 
-        # ----------------- estado geral ----------------- #
+        # - estado geral - #
         self.id        = agent_id
         self.pos_id    = start_id
         self.goal_id   = goal_id
@@ -37,17 +38,17 @@ class DeliveryAgent:
         # histórico de posições
         self.history: List[NodeId] = [start_id]
 
-        # ----------------- métricas --------------------- #
+        # - métricas  #
         self.replan_count: int = 0
         self.total_planning_time: float = 0.0
         self.initial_plan_time: float | None = None
 
-        # ------------------------------------------------ #
+        #  #
         self.traffic: Set[Coord] = set()
         self.path:   List[NodeId] = []
         self._plan_route()             # rota inicial
 
-    # ------------ callbacks / integração --------------- #
+    #  callbacks / integração  #
     def on_traffic_update(self, traffic_cells: Set[Coord]) -> None:
         self.traffic = traffic_cells
         self._plan_route()
@@ -66,7 +67,7 @@ class DeliveryAgent:
             self.history.append(self.pos_id)
             print(f"[{self.id}] -> {self.pos_id}")
 
-    # ---------------- planejamento --------------------- #
+    #  planejamento  #
     def _plan_route(self) -> None:
         t0 = time.perf_counter()
 
@@ -82,7 +83,7 @@ class DeliveryAgent:
             self._update_metrics(time.perf_counter() - t0)
             return
 
-        # ---------- A* ----------
+        #  A* 
         open_heap: List[Tuple[int, NodeId]] = [(0, self.pos_id)]
         g: Dict[NodeId, int] = {self.pos_id: 0}
         came: Dict[NodeId, NodeId] = {}
@@ -106,14 +107,14 @@ class DeliveryAgent:
         self.path = []
         self._update_metrics(time.perf_counter() - t0)
 
-    # ----------------- métricas ------------------------ #
+    # - métricas  #
     def _update_metrics(self, dt: float) -> None:
         self.replan_count += 1
         self.total_planning_time += dt
         if self.initial_plan_time is None:
             self.initial_plan_time = dt
 
-    # ---------------- heurísticas ---------------------- #
+    #  heurísticas  #
     def _heuristic(self, a: NodeId, b: NodeId) -> float:
         if self.heuristic == "euclidean":
             return self._euclidean(a, b)
@@ -122,15 +123,18 @@ class DeliveryAgent:
         return self._manhattan(a, b)          # default
 
     def _euclidean(self, a: NodeId, b: NodeId) -> float:
-        r1, c1 = self._coord(a); r2, c2 = self._coord(b)
+        r1, c1 = self._coord(a)
+        r2, c2 = self._coord(b)
         return ((r1 - r2) ** 2 + (c1 - c2) ** 2) ** 0.5
 
     def _manhattan(self, a: NodeId, b: NodeId) -> int:
-        r1, c1 = self._coord(a); r2, c2 = self._coord(b)
+        r1, c1 = self._coord(a) 
+        r2, c2 = self._coord(b)
         return abs(r1 - r2) + abs(c1 - c2)
 
     def _obstacles(self, a: NodeId, b: NodeId) -> int:
-        r1, c1 = self._coord(a); r2, c2 = self._coord(b)
+        r1, c1 = self._coord(a)
+        r2, c2 = self._coord(b)
         rmin, rmax = sorted((r1, r2)); cmin, cmax = sorted((c1, c2))
         return sum(
             1 for r in range(rmin, rmax + 1)
@@ -138,7 +142,7 @@ class DeliveryAgent:
               if not self.is_road.get((r, c), False)
         )
 
-    # ------------------ util --------------------------- #
+    #  util  #
     def _coord(self, node_id: NodeId) -> Coord:
         return self.pos_table[node_id]
 

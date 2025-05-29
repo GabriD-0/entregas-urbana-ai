@@ -1,0 +1,30 @@
+{
+  "manhattan": {
+    "initial_plan_time_s": 0.00022279995027929544,
+    "total_plan_time_s": 0.003918700153008103,
+    "replan_count": 102,
+    "planned_path_len": 24,
+    "actual_steps": 25,
+    "history_len": 26
+  },
+  "euclidean": {
+    "initial_plan_time_s": 0.0003195001045241952,
+    "total_plan_time_s": 0.004543600254692137,
+    "replan_count": 102,
+    "planned_path_len": 24,
+    "actual_steps": 23,
+    "history_len": 24
+  },
+  "dijkstra": {
+    "initial_plan_time_s": 0.00032899994403123856,
+    "total_plan_time_s": 0.007030199747532606,
+    "replan_count": 102,
+    "planned_path_len": 24,
+    "actual_steps": 25,
+    "history_len": 26
+  },
+  "simulation": {
+    "ticks": 100,
+    "duration_s": 0.1216
+  }
+}

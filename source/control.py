@@ -11,13 +11,15 @@ class ControlAgent:
       • Publica essas mudanças a todos os DeliveryAgents registrados.
       • (opcional) Pode redistribuir entregas, coletar métricas etc.
     """
-    def __init__(self,
-                 rows: int,
-                 cols: int,
-                 ttl_alert: int = 4,        # quantos “ticks” dura cada alerta
-                 max_alerts: int = 2,       # quantos bloq. simultâneos
-                 traffic_penalty: int = 3   # custo extra que o DeliveryAgent deve somar
-                 ) -> None:
+    def __init__(
+        self,
+        rows: int,
+        cols: int,
+        ttl_alert: int = 4,        # quantos “ticks” dura cada alerta
+        max_alerts: int = 2,       # quantos bloq. simultâneos
+        traffic_penalty: int = 3   # custo extra que o DeliveryAgent deve somar
+    ) -> None:
+
         self.rows      = rows
         self.cols      = cols
         self.ttl_alert = ttl_alert
