@@ -39,6 +39,7 @@ def aplicar_grid(
     colunas: int = 4,
     cor_grade: tuple = (255,255,255),
 ) -> np.ndarray:
+
     h, w    = mask.shape[:2]
     tile_h  = h // linhas
     tile_w  = w // colunas
@@ -62,6 +63,7 @@ def construir_grafo(
     colunas: int = 16,
     limiar: float = 0.05
 ) -> Dict:
+
     H, W = mask.shape[:2]
     th, tw = H // linhas, W // colunas
 
@@ -79,7 +81,7 @@ def construir_grafo(
         for r in range(linhas) for c in range(colunas)
     ]
 
-    # 3) Verifica arestas entre vizinhos N/S/E/O
+    # 3) Verifica arestas entre vizinhos
     edges = []
     vizinhos = [(-1,0),(1,0),(0,-1),(0,1)]
     for (r, c), ok in road.items():
@@ -110,10 +112,7 @@ def anotar_tiles(img: np.ndarray,
                  cor_texto: Tuple[int,int,int] = (0,255,0),
                  font_scale: float = 0.4,
                  espessura: int = 1) -> np.ndarray:
-    """
-    Escreve 'r_c' (linha_coluna) no centro de cada célula.
-    Retorna uma cópia anotada da imagem.
-    """
+
     h, w = img.shape[:2]
     tile_h, tile_w = h // linhas, w // colunas
     out = img.copy()
@@ -123,7 +122,7 @@ def anotar_tiles(img: np.ndarray,
             cx = c*tile_w + tile_w//2
             cy = r*tile_h + tile_h//2
             texto = f"{r}_{c}"
-            # Ajuste fino: move o texto um pouco para cima (‐10) para ficar centralizado
+            # Ajuste fino
             cv2.putText(out, texto, (cx-20, cy+5),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         font_scale, cor_texto, espessura, cv2.LINE_AA)

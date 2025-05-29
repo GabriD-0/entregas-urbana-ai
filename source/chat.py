@@ -32,11 +32,12 @@ PERMANENT_BLOCKS: Set[Tuple[int, int]] = {
 # Carregamento das rotas #
 _METRICS_PATH = Path("source/json/ticks_routes.json")
 
+
+"""
+Extrai a primeira dupla de inteiros da resposta do LLM.
+Aceita formatos: '(14,3)', '14,3', '14_3', 'row 14 col 3', '{"row":14,"col":3}', etc.
+"""
 def _parse_move(ans: str) -> Tuple[int, int] | None:
-    """
-    Extrai a primeira dupla de inteiros da resposta do LLM.
-    Aceita formatos: '(14,3)', '14,3', '14_3', 'row 14 col 3', '{"row":14,"col":3}', etc.
-    """
     nums = re.findall(r"\d+", ans)
     if len(nums) >= 2:
         return int(nums[0]), int(nums[1])
@@ -70,19 +71,15 @@ def neighbors(r: int, c: int) -> List[Tuple[int, int]]:
     return [p for p in cand if 0 <= p[0] < GRID_ROWS and 0 <= p[1] < GRID_COLS]
 
 
-# Interface de provedores de chat #
+# Interface de provedores de chat 
 class ChatProviderBase(ABC):
-    """Interface mínima para enviar/receber mensagens de um LLM."""
-
     @abstractmethod
-    def ask(self, prompt: str) -> str:  # pragma: no cover – interface
+    def ask(self, prompt: str) -> str:
         ...
 
 
 # Google Gemini Provider #
 class GeminiProvider(ChatProviderBase):
-    """Usa a biblioteca google-generativeai."""
-
     def __init__(self, model: str = "gemini-2.0-flash") -> None:
 
         if not GEMINI_API_KEY:
@@ -102,10 +99,8 @@ class GeminiProvider(ChatProviderBase):
                 time.sleep(delay)
 
 
-# Groq LLM Provider #
+# Groq LLM Provider
 class GroqProvider(ChatProviderBase):
-    """Compatível com o SDK oficial `groq` (OpenAI‑style)."""
-
     def __init__(self, model: str = "deepseek-r1-distill-llama-70b") -> None:
 
         if not GROQ_API_KEY:
@@ -123,8 +118,6 @@ class GroqProvider(ChatProviderBase):
 
 # Groq LLM Provider #
 class GroqProvider2(ChatProviderBase):
-    """Compatível com o SDK oficial `groq` (OpenAI‑style)."""
-
     def __init__(self, model: str = "llama-3.3-70b-versatile") -> None:
 
         if not GROQ_API_KEY2:
@@ -140,7 +133,7 @@ class GroqProvider2(ChatProviderBase):
         )
         return resp.choices[0].message.content.strip()
 
-# Agente móvel #
+# Agente móvel
 class ChatControlledAgent:
     def __init__(
         self,

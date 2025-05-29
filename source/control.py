@@ -4,13 +4,14 @@ from typing import Dict, List, Tuple
 
 Coord = Tuple[int, int] # (row, col)
 
+"""
+Orquestra o ambiente global.
+    • Gere/expira alertas de tráfego.
+    • Publica essas mudanças a todos os DeliveryAgents registrados.
+    • (opcional) Pode redistribuir entregas, coletar métricas etc.
+"""
 class ControlAgent:
-    """
-    Orquestra o ambiente global.
-      • Gere/expira alertas de tráfego.
-      • Publica essas mudanças a todos os DeliveryAgents registrados.
-      • (opcional) Pode redistribuir entregas, coletar métricas etc.
-    """
+
     def __init__(
         self,
         rows: int,
@@ -27,7 +28,7 @@ class ControlAgent:
         self.penalty   = traffic_penalty
 
         # estado interno
-        self._traffic: Dict[Coord,int] = {}        # célula -> TTL restante
+        self._traffic: Dict[Coord,int] = {}       # célula -> TTL restante
         self._agents : List = []                 # referências aos agentes inscritos
         self.tick = 0
 
@@ -35,7 +36,6 @@ class ControlAgent:
     def register(self, agent) -> None:
         """Associa um DeliveryAgent a este controle."""
         self._agents.append(agent)
-        # envia estado de tráfego atual já na inscrição
         agent.on_traffic_update(set(self._traffic))
 
     def get_penalty(self, cell: Coord) -> int:

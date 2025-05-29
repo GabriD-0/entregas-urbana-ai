@@ -21,7 +21,7 @@ IMAGE_SRC       = src_dir / "image.png"
 IMAGE_LINES     = src_dir / "imgs/1_image_linhas.png"
 GRID_IMG        = src_dir / "imgs/2_image_grid.png"
 GRID_LABELS_IMG = src_dir / "imgs/3_image_grid_labels.png"
-GRAPH_JSON      = src_dir / "imgs/image_graph.json"
+GRAPH_JSON      = src_dir / "json/image_graph.json"
 ROUTE_IMG       = src_dir / "imgs/rotas/1_image_route_manhattan.png"
 IMG_ROUTE_EUC   = src_dir / "imgs/rotas/2_image_route_euclid.png"
 IMG_ROUTE_DIJ   = src_dir / "imgs/rotas/3_image_route_dijk.png"
@@ -35,12 +35,7 @@ GOAL_ID  = "2_14"
 ticks = 100
 
 def desenhar_rota(base_img: np.ndarray, coords: Sequence[tuple[int, int]]) -> np.ndarray:
-    """
-    Desenha a rota sobre a imagem de grid, conectando centros de cada célula.
-    - base_img: imagem BGR carregada pelo cv2
-    - coords: sequência de tuplas (linha, coluna) representando o percurso planejado
-    Retorna uma cópia da imagem com rota desenhada (apenas início e fim marcados).
-    """
+
     img = base_img.copy()
     h, w = img.shape[:2]
     cell_h = h // grid_size
@@ -114,7 +109,7 @@ def main():
 
 
     if path_ids_man is None or path_ids_euc is None or path_ids_dij is None:
-        raise SystemExit("✖ Sem rota viável")
+        raise SystemExit("X Sem rota viável")
 
 
     # Converte IDs "r_c" → (r, c)
@@ -169,7 +164,7 @@ def main():
     img_hist_dij = desenhar_rota(base, coords_dij)
     cv2.imwrite(str(src_dir / "imgs/rotas/6_rota_real_dijkstra.png"), img_hist_dij)
 
-    print("→ rota_real_manhattan.png, rota_real_euclidiana.png, rota_real_dijkstra.png geradas")
+    print("-> rota_real_manhattan.png, rota_real_euclidiana.png, rota_real_dijkstra.png geradas")
 
 
     # — Euclidiana em azul
@@ -236,6 +231,7 @@ def main():
     coletar(agent1,     "manhattan", path_coords_man)
     coletar(agent2,     "euclidean", path_coords_euc)
     coletar(agent_dijk, "dijkstra",  path_coords_dij)
+
     metrics["simulation"] = {
         "ticks": ticks,
         "duration_s": round(simulation_time, 4),

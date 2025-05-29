@@ -23,7 +23,7 @@ class DeliveryAgent:
         permanent_blocks: set[Coord] | None = None,
     ) -> None:
 
-        # - estado geral - #
+        # estado geral
         self.id        = agent_id
         self.pos_id    = start_id
         self.goal_id   = goal_id
@@ -38,17 +38,16 @@ class DeliveryAgent:
         # histórico de posições
         self.history: List[NodeId] = [start_id]
 
-        # - métricas  #
+        # métricas
         self.replan_count: int = 0
         self.total_planning_time: float = 0.0
         self.initial_plan_time: float | None = None
 
-        #  #
         self.traffic: Set[Coord] = set()
         self.path:   List[NodeId] = []
-        self._plan_route()             # rota inicial
+        self._plan_route() # rota inicial
 
-    #  callbacks / integração  #
+    # callbacks / integração
     def on_traffic_update(self, traffic_cells: Set[Coord]) -> None:
         self.traffic = traffic_cells
         self._plan_route()
@@ -67,7 +66,7 @@ class DeliveryAgent:
             self.history.append(self.pos_id)
             print(f"[{self.id}] -> {self.pos_id}")
 
-    #  planejamento  #
+    # planejamento 
     def _plan_route(self) -> None:
         t0 = time.perf_counter()
 
@@ -107,20 +106,20 @@ class DeliveryAgent:
         self.path = []
         self._update_metrics(time.perf_counter() - t0)
 
-    # - métricas  #
+    # métricas
     def _update_metrics(self, dt: float) -> None:
         self.replan_count += 1
         self.total_planning_time += dt
         if self.initial_plan_time is None:
             self.initial_plan_time = dt
 
-    #  heurísticas  #
+    # heurísticas
     def _heuristic(self, a: NodeId, b: NodeId) -> float:
         if self.heuristic == "euclidean":
             return self._euclidean(a, b)
         if self.heuristic == "obstacles":
             return self._obstacles(a, b)
-        return self._manhattan(a, b)          # default
+        return self._manhattan(a, b)
 
     def _euclidean(self, a: NodeId, b: NodeId) -> float:
         r1, c1 = self._coord(a)

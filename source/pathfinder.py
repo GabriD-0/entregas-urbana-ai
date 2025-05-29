@@ -13,12 +13,7 @@ AdjTable = Dict[NodeId, Set[NodeId]]
 PosTable = Dict[NodeId, Coord]
 
 def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
-    """
-    Lê o arquivo JSON gerado pelo seu pipeline e devolve:
-      - positions:  id -> (row, col)
-      - adj:        id -> set(id vizinhos)
-    Considera apenas nós com is_road == 1.
-    """
+    # Lê o arquivo JSON gerado pelo seu pipeline e devolve:
     data = json.loads(Path(json_path).read_text(encoding="utf-8"))
 
     # Tabela de posições (somente ruas)
@@ -30,7 +25,7 @@ def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
     # Tabela de adjacência (aresta se ambos os nós são rua)
     adj: AdjTable = {nid: set() for nid in positions}
     for a, b in data["edges"]:
-        if a in positions and b in positions:      # garante que ambos são “rua”
+        if a in positions and b in positions:
             adj[a].add(b)
             adj[b].add(a)
 
@@ -38,7 +33,6 @@ def load_graph(json_path: str | Path) -> Tuple[PosTable, AdjTable]:
         (n["row"], n["col"]): bool(n["is_road"])
         for n in data["nodes"]
     }
-
     return positions, adj, is_road
 
 
@@ -66,7 +60,10 @@ def obstaculos(a: Coord, b: Coord, is_road: Dict[Coord, bool]) -> int:
 
     return conta
 
-
+"""
+Algoritmo A*.  Retorna a lista de nós do caminho (start … goal)
+ou None se não existe rota.
+"""
 def a_star(
         start: NodeId,
         goal: NodeId,
@@ -75,11 +72,6 @@ def a_star(
         heuristic: str = "manhattan",
         is_road: Dict[Coord, bool] | None = None
     ) -> List[NodeId] | None:
-
-    """
-    Algoritmo A*.  Retorna a lista de nós do caminho (start … goal)
-    ou None se não existe rota.
-    """
 
     open_heap: List[Tuple[int, NodeId]] = []
     heapq.heappush(open_heap, (0, start))
@@ -106,6 +98,7 @@ def a_star(
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
                 f = tentative_g + manhattan(pos[neighbor], pos[goal])
+
                 # Heuristica
                 if heuristic == "manhattan":
                     h = manhattan(pos[neighbor], pos[goal])
@@ -131,18 +124,13 @@ def dijkstra(
         cost_fn: Callable[[NodeId, NodeId], int] = lambda _a, _b: 1
     ) -> List[NodeId] | None:
 
-    """
-    Busca de custo uniforme (não heurística).  Retorna o caminho
-    mais barato segundo `cost_fn`, ou None se não há rota.
-    """
-
     open_heap: List[Tuple[int, NodeId]] = [(0, start)]
     came: Dict[NodeId, NodeId] = {}
     dist: Dict[NodeId, int]   = {start: 0}
 
     while open_heap:
         g, cur = heapq.heappop(open_heap)
-        if cur == goal:                      # reconstrução
+        if cur == goal:
             path = [cur]
             while cur in came:
                 cur = came[cur]
@@ -151,7 +139,7 @@ def dijkstra(
             return path
 
         for nxt in adj[cur]:
-            ng = g + cost_fn(cur, nxt)       # CUSTO REAL
+            ng = g + cost_fn(cur, nxt) # CUSTO REAL
             if nxt not in dist or ng < dist[nxt]:
                 dist[nxt] = ng
                 came[nxt] = cur
@@ -159,15 +147,17 @@ def dijkstra(
     return None
 
 
-# Visualização opcional
-def draw_path_on_grid(img_path: str | Path,
-                      grid_rows: int, grid_cols: int,
-                      path: List[NodeId],
-                      out_path: str | Path):
     """
     Desenha a rota (lista de NodeIds) por cima da imagem de grade gerada
     anteriormente e salva em `out_path`.
     """
+def draw_path_on_grid(
+        img_path: str | Path,
+        grid_rows: int, grid_cols: int,
+        path: List[NodeId],
+        out_path: str | Path
+    ):
+
     img = cv2.imread(str(img_path))
     if img is None:
         raise FileNotFoundError(img_path)
